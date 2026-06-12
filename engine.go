@@ -23,8 +23,6 @@ func init() {
 	llama.InitLogging()
 }
 
-// 	CGO_CXXFLAGS="-w -Wno-format -Wno-delete-incomplete" go run -tags=llama cmd/node/moderator/main.go --node.network testnet --node.port 4002 --node.seed moderatorlocalhost --node.moderator.modelpath Llama-Guard-3-1B.Q8_0.gguf 2>/dev/null
-
 type Engine interface {
 	Moderate(content string) (bool, string, error)
 	Close()
