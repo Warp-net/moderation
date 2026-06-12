@@ -35,3 +35,6 @@ go.work.sum
 vendor
 
 *.gguf
+
+go.mod
+go.sum
