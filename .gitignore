@@ -29,4 +29,9 @@ go.work.sum
 
 # Editor/IDE
 .idea/
+.claude
 # .vscode/
+
+vendor
+
+*.gguf

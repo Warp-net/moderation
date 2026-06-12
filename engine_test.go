@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const modelPath = "/tmp/llama-2-7b-chat.Q8_0.gguf"
+const modelPath = "Llama-Guard-3-1B.Q8_0.gguf"
 
 func TestNewLlamaEngineViolationSuccess(t *testing.T) {
 	if testing.Short() {
