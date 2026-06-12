@@ -6,12 +6,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	llama "github.com/tcpipuk/llama-go"
 )
+
+func init() {
+	// Silence llama.cpp's chatty C++ logs (the model-loader metadata dump,
+	// print_info, load_tensors, sched_reserve, and the benign n_ctx warning).
+	// Real load/inference failures still surface as Go errors. Set before any
+	// model is loaded so it takes effect.
+	_ = os.Setenv("LLAMA_LOG", "error")
+	llama.InitLogging()
+}
 
 // 	CGO_CXXFLAGS="-w -Wno-format -Wno-delete-incomplete" go run -tags=llama cmd/node/moderator/main.go --node.network testnet --node.port 4002 --node.seed moderatorlocalhost --node.moderator.modelpath Llama-Guard-3-1B.Q8_0.gguf 2>/dev/null
 
@@ -39,6 +49,7 @@ func NewLlamaEngine(modelPath string, threads int) (_ *llamaEngine, err error) {
 		modelPath,
 		llama.WithMMap(true),
 		llama.WithGPULayers(0),
+		llama.WithSilentLoading(),
 	)
 	if err != nil {
 		return nil, err
