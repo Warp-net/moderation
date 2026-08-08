@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -76,10 +75,6 @@ func NewLlamaEngine(modelPath string, threads int) (_ *llamaEngine, err error) {
 
 func (e *llamaEngine) Moderate(content string) (bool, string, error) {
 	now := time.Now()
-	// The taxonomy is prompted explicitly rather than via ctx.Chat: llama.cpp
-	// cannot run the Jinja template embedded in the GGUF and falls back to a
-	// plain llama3 wrapper, which leaves the model classifying blind. See
-	// guardPromptTemplate.
 	raw, err := e.ctx.Generate(buildGuardPrompt(content), e.opts...)
 	if err != nil {
 		return true, "", err
@@ -87,20 +82,7 @@ func (e *llamaEngine) Moderate(content string) (bool, string, error) {
 	elapsed := time.Since(now)
 	log.Infof("moderation: elapsed %s", elapsed.String())
 
-	out := strings.ToLower(strings.TrimSpace(raw))
-
-	switch {
-	case strings.HasPrefix(out, "safe"):
-		return true, "", nil
-	case strings.HasPrefix(out, "unsafe"):
-		reason := parseViolationReason(raw)
-		if reason == "" {
-			return true, "", nil
-		}
-		return false, reason, nil
-	default:
-		return true, "", errors.New("unrecognized LLM output: " + out)
-	}
+	return classifyOutput(raw)
 }
 
 func (e *llamaEngine) Close() {
