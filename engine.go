@@ -3,7 +3,6 @@
 package moderation
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -31,7 +30,7 @@ type Engine interface {
 type llamaEngine struct {
 	model *llama.Model
 	ctx   *llama.Context
-	opts  llama.ChatOptions
+	opts  []llama.GenerateOption
 }
 
 func NewLlamaEngine(modelPath string, threads int) (_ *llamaEngine, err error) {
@@ -64,11 +63,11 @@ func NewLlamaEngine(modelPath string, threads int) (_ *llamaEngine, err error) {
 
 	// Llama Guard classifies, so we only need a few tokens ("unsafe\nS9,S2")
 	// and deterministic decoding.
-	opts := llama.ChatOptions{
-		MaxTokens:   llama.Int(64),
-		Temperature: llama.Float32(0.0),
-		TopP:        llama.Float32(0.9),
-		Seed:        llama.Int(42),
+	opts := []llama.GenerateOption{
+		llama.WithMaxTokens(64),
+		llama.WithTemperature(0.0),
+		llama.WithTopP(0.9),
+		llama.WithSeed(42),
 	}
 
 	lle := &llamaEngine{model: model, ctx: ctx, opts: opts}
@@ -77,25 +76,24 @@ func NewLlamaEngine(modelPath string, threads int) (_ *llamaEngine, err error) {
 
 func (e *llamaEngine) Moderate(content string) (bool, string, error) {
 	now := time.Now()
-	// Chat applies the model's embedded Llama Guard safety template (which
-	// carries the hazard taxonomy); Generate/FormatChatPrompt would fall back
-	// to a plain llama3 prompt and not classify.
-	resp, err := e.ctx.Chat(context.Background(), []llama.ChatMessage{
-		{Role: "user", Content: content},
-	}, e.opts)
+	// The taxonomy is prompted explicitly rather than via ctx.Chat: llama.cpp
+	// cannot run the Jinja template embedded in the GGUF and falls back to a
+	// plain llama3 wrapper, which leaves the model classifying blind. See
+	// guardPromptTemplate.
+	raw, err := e.ctx.Generate(buildGuardPrompt(content), e.opts...)
 	if err != nil {
 		return true, "", err
 	}
 	elapsed := time.Since(now)
 	log.Infof("moderation: elapsed %s", elapsed.String())
 
-	out := strings.ToLower(strings.TrimSpace(resp.Content))
+	out := strings.ToLower(strings.TrimSpace(raw))
 
 	switch {
 	case strings.HasPrefix(out, "safe"):
 		return true, "", nil
 	case strings.HasPrefix(out, "unsafe"):
-		reason := parseViolationReason(resp.Content)
+		reason := parseViolationReason(raw)
 		if reason == "" {
 			return true, "", nil
 		}
