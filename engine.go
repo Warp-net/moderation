@@ -53,6 +53,7 @@ func NewLlamaEngine(modelPath string, threads int) (_ *llamaEngine, err error) {
 
 	ctx, err := model.NewContext(
 		llama.WithContext(4096),
+		llama.WithBatch(256),
 		llama.WithThreads(threads),
 	)
 	if err != nil {
